@@ -1,0 +1,360 @@
+/* 响应式设计 */
+
+/* 大屏幕设备 (1200px 及以上) */
+@media (min-width: 1200px) {
+    .app-container {
+        padding: 0 var(--spacing-xl);
+    }
+
+    .vocabulary-list {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    .result-actions {
+        flex-wrap: nowrap;
+    }
+}
+
+/* 中等屏幕设备 (768px - 1199px) */
+@media (max-width: 1199px) {
+    .header h1 {
+        font-size: 2.5rem;
+    }
+
+    .subtitle {
+        font-size: var(--font-size-lg);
+    }
+
+    .vocabulary-list {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .result-actions {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .result-actions button {
+        width: 100%;
+        max-width: 300px;
+    }
+}
+
+/* 小屏幕设备 (576px - 767px) */
+@media (max-width: 767px) {
+    :root {
+        --font-size-xxl: 28px;
+        --font-size-xl: 22px;
+        --spacing-xl: 20px;
+        --spacing-xxl: 36px;
+    }
+
+    .app-container {
+        padding: 0 var(--spacing-sm);
+    }
+
+    .header {
+        margin: var(--spacing-sm) 0;
+        padding: var(--spacing-lg) 0;
+    }
+
+    .api-key-input {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .api-key-input input {
+        min-width: auto;
+    }
+
+    .step {
+        padding: var(--spacing-lg);
+    }
+
+    .vocabulary-tabs {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+    }
+
+    .vocabulary-tabs::-webkit-scrollbar {
+        height: 4px;
+    }
+
+    .vocabulary-tabs::-webkit-scrollbar-track {
+        background: var(--bg-secondary);
+    }
+
+    .vocabulary-tabs::-webkit-scrollbar-thumb {
+        background: var(--border-color);
+        border-radius: 2px;
+    }
+
+    .vocabulary-list {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--spacing-sm);
+    }
+
+    .vocabulary-item {
+        padding: var(--spacing-sm);
+    }
+
+    .vocabulary-item .hanzi {
+        font-size: var(--font-size-lg);
+    }
+
+    .vocabulary-actions {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+
+    .vocabulary-actions button {
+        width: 100%;
+    }
+
+    .modal-content {
+        width: 95%;
+        padding: var(--spacing-lg);
+    }
+
+    .confirm-dialog {
+        width: 95%;
+        padding: var(--spacing-lg);
+    }
+}
+
+/* 超小屏幕设备 (575px 及以下) */
+@media (max-width: 575px) {
+    :root {
+        --spacing-md: 12px;
+        --spacing-lg: 16px;
+        --spacing-xl: 20px;
+    }
+
+    .header h1 {
+        font-size: var(--font-size-xxl);
+    }
+
+    .header {
+        padding: var(--spacing-md) 0;
+    }
+
+    .subtitle {
+        font-size: var(--font-size-base);
+    }
+
+    .step h2 {
+        font-size: var(--font-size-lg);
+    }
+
+    .vocabulary-list {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-md);
+    }
+
+    .vocabulary-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: var(--spacing-md);
+        text-align: left;
+    }
+
+    .vocabulary-item .word-content {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .vocabulary-item .hanzi {
+        font-size: var(--font-size-xl);
+        margin-bottom: 2px;
+    }
+
+    .vocabulary-item .pinyin {
+        font-size: var(--font-size-sm);
+        margin-bottom: 4px;
+    }
+
+    .vocabulary-item .category {
+        margin-top: 0;
+    }
+
+    .result-actions {
+        gap: var(--spacing-sm);
+    }
+
+    .result-actions button {
+        padding: var(--spacing-sm) var(--spacing-md);
+        font-size: var(--font-size-base);
+    }
+
+    .btn-primary {
+        width: 100%;
+    }
+
+    .task-details {
+        padding: var(--spacing-sm);
+    }
+
+    .progress-bar {
+        height: 6px;
+    }
+
+    .spinner {
+        width: 40px;
+        height: 40px;
+        border-width: 3px;
+    }
+}
+
+/* 高分辨率屏幕优化 */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .spinner {
+        border-width: 2px;
+    }
+
+    .progress-bar {
+        height: 6px;
+    }
+}
+
+/* 打印样式 */
+@media print {
+    .app-container {
+        max-width: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .header,
+    .api-key-section,
+    .step:not(#step4),
+    .footer {
+        display: none;
+    }
+
+    #step4 {
+        box-shadow: none;
+        border: none;
+        padding: 0;
+    }
+
+    .result-actions {
+        display: none;
+    }
+
+    .report-preview img {
+        max-width: 100%;
+        box-shadow: none;
+    }
+}
+
+/* 横屏模式优化 */
+@media screen and (orientation: landscape) and (max-height: 600px) {
+    .header {
+        padding: var(--spacing-md) 0;
+    }
+
+    .header h1 {
+        font-size: var(--font-size-xl);
+    }
+
+    .subtitle {
+        display: none;
+    }
+
+    .step {
+        padding: var(--spacing-md);
+    }
+
+    .step h2 {
+        font-size: var(--font-size-lg);
+        margin-bottom: var(--spacing-md);
+    }
+
+    .progress-container {
+        margin: var(--spacing-md) 0;
+    }
+
+    .loading-animation {
+        margin: var(--spacing-md) 0;
+    }
+}
+
+/* 可访问性优化 */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    .spinner {
+        animation: none;
+        border: 4px solid var(--primary-color);
+        border-radius: 50%;
+    }
+}
+
+/* 深色模式支持 */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --text-primary: #E0E0E0;
+        --text-secondary: #BDBDBD;
+        --text-disabled: #757575;
+        --bg-primary: #1E1E1E;
+        --bg-secondary: #2D2D2D;
+        --bg-card: #252525;
+        --border-color: #404040;
+    }
+
+    .header {
+        background: linear-gradient(135deg, #2E7D32, #1565C0);
+    }
+
+    .modal {
+        background: rgba(0, 0, 0, 0.8);
+    }
+
+    .skeleton {
+        background: linear-gradient(90deg,
+            var(--border-color) 25%,
+            rgba(64, 64, 64, 0.5) 50%,
+            var(--border-color) 75%
+        );
+    }
+}
+
+/* 触摸设备优化 */
+@media (hover: none) and (pointer: coarse) {
+    .vocabulary-item {
+        transform: none;
+    }
+
+    .vocabulary-item:active {
+        transform: scale(0.98);
+    }
+
+    .btn-primary:hover,
+    .btn-secondary:hover,
+    .btn-danger:hover {
+        transform: none;
+    }
+
+    .btn-primary:active,
+    .btn-secondary:active,
+    .btn-danger:active {
+        transform: scale(0.98);
+    }
+
+    .tab-btn {
+        padding: var(--spacing-md);
+    }
+
+    .tooltip::after {
+        display: none;
+    }
+}

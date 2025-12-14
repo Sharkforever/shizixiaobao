@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>儿童识字小报生成器</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 顶部标题 -->
+        <header class="header">
+            <h1>儿童识字小报生成器</h1>
+            <p class="subtitle">为5-9岁儿童生成生动的识字学习小报</p>
+        </header>
+
+        <!-- API密钥设置 -->
+        <div class="api-key-section">
+            <div class="api-key-input">
+                <label for="apiKey">API密钥：</label>
+                <input type="password" id="apiKey" placeholder="请输入Nano Banana Pro API密钥">
+                <button id="saveApiKey" class="btn-small">保存</button>
+            </div>
+            <p class="api-note">* API密钥将保存在浏览器本地，仅用于本次会话</p>
+        </div>
+
+        <!-- 主容器 -->
+        <div class="container">
+            <!-- 步骤1：输入表单 -->
+            <section id="step1" class="step active">
+                <h2>第一步：输入主题信息</h2>
+                <div class="form-container">
+                    <form id="topicForm">
+                        <div class="form-group">
+                            <label for="topic">主题/场景</label>
+                            <input type="text" id="topic" placeholder="例如：超市、医院、公园、学校" required>
+                            <small>请输入一个适合儿童学习的场景主题</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="title">小报标题</label>
+                            <input type="text" id="title" placeholder="例如：快乐超市、我的医院" required>
+                            <small>为识字小报起一个吸引人的标题</small>
+                        </div>
+                        <button type="submit" class="btn-primary">生成词汇列表</button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- 步骤2：词汇展示 -->
+            <section id="step2" class="step">
+                <h2>第二步：确认词汇列表</h2>
+                <div class="vocabulary-container">
+                    <div class="vocabulary-tabs">
+                        <button class="tab-btn active" data-category="all">全部</button>
+                        <button class="tab-btn" data-category="core">核心角色</button>
+                        <button class="tab-btn" data-category="item">常见物品</button>
+                        <button class="tab-btn" data-category="env">环境装饰</button>
+                    </div>
+                    <div id="vocabularyList" class="vocabulary-list">
+                        <!-- 词汇列表将通过JS动态生成 -->
+                    </div>
+                    <div class="vocabulary-actions">
+                        <button id="regenerateBtn" class="btn-secondary">重新生成</button>
+                        <button id="confirmBtn" class="btn-primary">确认使用这些词汇</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 步骤3：生成中 -->
+            <section id="step3" class="step">
+                <h2>第三步：正在生成小报</h2>
+                <div class="progress-container">
+                    <div class="loading-animation">
+                        <div class="spinner"></div>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <p class="progress-text" id="progressText">正在调用AI生成小报...</p>
+                    </div>
+                    <div class="task-details">
+                        <p id="taskId"></p>
+                        <button id="cancelBtn" class="btn-danger">取消生成</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 步骤4：结果展示 -->
+            <section id="step4" class="step">
+                <h2>第四步：生成完成</h2>
+                <div class="result-container">
+                    <div class="report-preview" id="reportPreview">
+                        <!-- 图片预览将通过JS动态生成 -->
+                    </div>
+                    <div class="result-actions">
+                        <button id="downloadBtn" class="btn-primary">
+                            <span class="icon">⬇</span>
+                            下载高清图片
+                        </button>
+                        <button id="regenerateImageBtn" class="btn-secondary">
+                            <span class="icon">🔄</span>
+                            重新生成图片
+                        </button>
+                        <button id="newReportBtn" class="btn-secondary">
+                            <span class="icon">➕</span>
+                            生成新的小报
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- 错误提示模态框 -->
+        <div id="errorModal" class="modal">
+            <div class="modal-content">
+                <h3>错误提示</h3>
+                <p id="errorMessage"></p>
+                <button id="closeErrorModal" class="btn-primary">确定</button>
+            </div>
+        </div>
+
+        <!-- 页脚 -->
+        <footer class="footer">
+            <p>基于 Nano Banana Pro AI 绘图技术</p>
+        </footer>
+    </div>
+
+    <!-- 引入JavaScript文件 -->
+    <script src="lib/pinyin.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/prompt.js"></script>
+    <script src="js/vocabulary.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
