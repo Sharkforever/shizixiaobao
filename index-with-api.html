@@ -13,6 +13,9 @@
         <header class="header">
             <h1>儿童识字小报生成器</h1>
             <p class="subtitle">为5-9岁儿童生成生动的识字学习小报</p>
+            <div style="margin-top: 10px;">
+                <a href="test-glm-api.html" style="color: #4CAF50; text-decoration: none;">📋 测试GLM API连接</a>
+            </div>
         </header>
 
         <!-- API配置区域 -->
@@ -34,45 +37,16 @@
 
             <!-- 词汇生成LLM配置 -->
             <div class="config-block">
-                <h3>词汇生成LLM配置</h3>
+                <h3>词汇生成LLM配置 (GLM)</h3>
                 <div class="api-config">
-                    <!-- 提供商选择 -->
-                    <div class="form-group">
-                        <label for="llmProvider">选择LLM提供商:</label>
-                        <select id="llmProvider" class="provider-select">
-                            <option value="">请选择提供商</option>
-                            <!-- 选项将通过JavaScript动态加载 -->
-                        </select>
-                        <small id="providerDescription"></small>
-                    </div>
+                    <label for="llmUrl">API地址:</label>
+                    <input type="url" id="llmUrl" placeholder="https://open.bigmodel.cn/api/paas/v4/" value="https://open.bigmodel.cn/api/paas/v4/">
 
-                    <!-- API地址 -->
-                    <div class="form-group">
-                        <label for="llmUrl">API地址:</label>
-                        <input type="url" id="llmUrl" placeholder="将根据选择的提供商自动填充" readonly>
-                        <button type="button" id="unlockUrl" class="btn-small">自定义地址</button>
-                    </div>
+                    <label for="llmKey">API密钥:</label>
+                    <input type="password" id="llmKey" placeholder="请输入GLM API密钥" value="5fa16f6e3bbc42be8ef961267db1a0fc.mFY3GH2AqsakYnEF">
 
-                    <!-- 模型选择 -->
-                    <div class="form-group">
-                        <label for="llmModel">选择模型:</label>
-                        <select id="llmModel" class="model-select">
-                            <option value="">请先选择提供商</option>
-                            <!-- 模型选项将通过JavaScript动态加载 -->
-                        </select>
-                    </div>
-
-                    <!-- API密钥 -->
-                    <div class="form-group">
-                        <label for="llmKey">API密钥:</label>
-                        <input type="password" id="llmKey" placeholder="请输入API密钥">
-                    </div>
-
-                    <!-- 操作按钮 -->
-                    <div class="button-group">
-                        <button id="saveLlmConfig" class="btn-primary">保存配置</button>
-                        <button id="testLlmConnection" class="btn-secondary">测试连接</button>
-                    </div>
+                    <button id="saveLlmConfig" class="btn-primary">保存配置</button>
+                    <button id="testLlmConnection" class="btn-secondary">测试连接</button>
                     <span class="status-indicator" id="llmStatus"></span>
                 </div>
             </div>
@@ -90,12 +64,12 @@
                     <form id="topicForm">
                         <div class="form-group">
                             <label for="topic">主题/场景</label>
-                            <input type="text" id="topic" placeholder="例如：超市、医院、公园、学校" required>
+                            <input type="text" id="topic" placeholder="例如：超市、医院、公园、学校" value="超市" required>
                             <small>请输入一个适合儿童学习的场景主题</small>
                         </div>
                         <div class="form-group">
                             <label for="title">小报标题</label>
-                            <input type="text" id="title" placeholder="例如：快乐超市、我的医院" required>
+                            <input type="text" id="title" placeholder="例如：快乐超市、我的医院" value="快乐超市" required>
                             <small>为识字小报起一个吸引人的标题</small>
                         </div>
                         <button type="submit" class="btn-primary btn-large">生成词汇列表</button>
@@ -171,8 +145,6 @@
 
     <!-- 加载JavaScript -->
     <script src="js/config.js"></script>
-    <script src="js/llm-providers.js"></script>
-    <script src="js/llm-manager.js"></script>
     <script src="js/api-nanobanana.js"></script>
     <script src="js/api-llm.js"></script>
     <script src="js/vocabulary.js"></script>
