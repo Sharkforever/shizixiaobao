@@ -1,35 +1,189 @@
-// 主应用逻辑
-class ReportApp {
+// 主应用
+class LiteracyReportApp {
     constructor() {
-        this.currentStep = CONFIG.UI.STEPS.INPUT;
-        this.currentTask = null;
-        this.currentVocabulary = [];
-        this.promptTemplate = new PromptTemplate();
-        this.pollingTimer = null;
+        this.nanobananaAPI = null;
+        this.llmManager = new LLMManager();
+        this.vocabularyManager = new VocabularyManager();
+        this.promptGenerator = new PromptGenerator();
+        this.currentTopic = '';
+        this.currentTitle = '';
+        this.generationTaskId = null;
 
         this.init();
     }
 
-    // 初始化应用
-    init() {
-        // 加载保存的API密钥
-        const savedApiKey = storage.get(CONFIG.STORAGE_KEYS.API_KEY);
-        if (savedApiKey) {
-            $('#apiKey').value = savedApiKey;
-            nanoBananaAPI.setApiKey(savedApiKey);
-        }
+    async init() {
+        // 初始化LLM提供商
+        this.initLLMProviders();
+
+        // 加载保存的配置
+        this.loadSavedConfigs();
+
+        // 初始化API客户端
+        this.initAPIClients();
+
+        // 初始化LLM界面
+        this.initLLMInterface();
 
         // 绑定事件
         this.bindEvents();
 
         // 显示第一步
-        this.showStep(CONFIG.UI.STEPS.INPUT);
+        showStep('step1');
+    }
+
+    // 初始化LLM提供商
+    initLLMProviders() {
+        // 注册所有可用的LLM提供商
+        this.llmManager.registerProvider('siliconflow', SiliconFlowProvider);
+        this.llmManager.registerProvider('zhipu', ZhipuProvider);
+        this.llmManager.registerProvider('openai', OpenAIProvider);
+        this.llmManager.registerProvider('anthropic', AnthropicProvider);
+    }
+
+    // 初始化LLM界面
+    initLLMInterface() {
+        // 填充提供商选择下拉框
+        const providerSelect = $('#llmProvider');
+        if (providerSelect) {
+            // 清空现有选项
+            providerSelect.innerHTML = '<option value="">请选择提供商</option>';
+
+            // 添加提供商选项
+            Object.entries(CONFIG.LLM_PROVIDERS).forEach(([key, provider]) => {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = provider.name;
+                providerSelect.appendChild(option);
+            });
+
+            // 设置默认值
+            providerSelect.value = CONFIG.DEFAULT_LLM_PROVIDER;
+            this.updateProviderFields();
+        }
+    }
+
+    // 更新提供商相关字段
+    updateProviderFields() {
+        const providerSelect = $('#llmProvider');
+        const urlInput = $('#llmUrl');
+        const modelSelect = $('#llmModel');
+        const description = $('#providerDescription');
+
+        if (!providerSelect.value) {
+            urlInput.value = '';
+            urlInput.readOnly = true;
+            modelSelect.innerHTML = '<option value="">请先选择提供商</option>';
+            modelSelect.disabled = true;
+            description.textContent = '';
+            return;
+        }
+
+        const provider = CONFIG.LLM_PROVIDERS[providerSelect.value];
+        if (provider) {
+            // 更新URL
+            urlInput.value = provider.baseUrl;
+            urlInput.readOnly = true;
+
+            // 更新描述
+            description.textContent = provider.description;
+
+            // 加载模型列表
+            this.loadModels(providerSelect.value);
+        }
+    }
+
+    // 加载模型列表
+    async loadModels(providerName) {
+        const modelSelect = $('#llmModel');
+        modelSelect.innerHTML = '<option value="">加载中...</option>';
+        modelSelect.disabled = true;
+
+        try {
+            // 创建临时提供商实例来获取模型列表
+            const ProviderClass = window.LLM_PROVIDER_MAP[providerName];
+            if (ProviderClass) {
+                const tempProvider = new ProviderClass('temp_key');
+                const models = await tempProvider.getModels();
+
+                modelSelect.innerHTML = '';
+                models.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model.id;
+                    option.textContent = model.name;
+                    modelSelect.appendChild(option);
+                });
+
+                // 设置默认模型
+                const defaultModel = CONFIG.LLM_PROVIDERS[providerName].defaultModel;
+                if (defaultModel) {
+                    modelSelect.value = defaultModel;
+                }
+            }
+        } catch (error) {
+            console.warn('加载模型列表失败:', error);
+            // 使用默认模型
+            const defaultModel = CONFIG.LLM_PROVIDERS[providerName].defaultModel;
+            modelSelect.innerHTML = `<option value="${defaultModel}">${defaultModel}</option>`;
+            modelSelect.value = defaultModel;
+        }
+
+        modelSelect.disabled = false;
+    }
+
+    // 加载保存的配置
+    loadSavedConfigs() {
+        const nanobananaConfig = loadConfig(CONFIG.STORAGE_KEYS.NANOBANANA);
+
+        if (nanobananaConfig) {
+            $('#nanobananaUrl').value = nanobananaConfig.url || CONFIG.DEFAULTS.nanobanana.url;
+            $('#nanobananaKey').value = nanobananaConfig.key || '';
+        }
+
+        // 加载LLM配置（如果有保存的配置）
+        const savedLLMProvider = localStorage.getItem('llm_current_provider');
+        if (savedLLMProvider) {
+            const config = this.llmManager.getProviderConfig(savedLLMProvider);
+            if (config) {
+                $('#llmProvider').value = savedLLMProvider;
+                this.updateProviderFields();
+                $('#llmModel').value = config.model || CONFIG.LLM_PROVIDERS[savedLLMProvider].defaultModel;
+                $('#llmKey').value = config.apiKey || '';
+                $('#llmUrl').value = config.baseUrl || CONFIG.LLM_PROVIDERS[savedLLMProvider].baseUrl;
+            }
+        }
+    }
+
+    // 初始化API客户端
+    initAPIClients() {
+        const nanobananaUrl = $('#nanobananaUrl').value;
+        const nanobananaKey = $('#nanobananaKey').value;
+
+        if (nanobananaKey) {
+            this.nanobananaAPI = new NanoBananaAPI(nanobananaUrl, nanobananaKey);
+        }
+
+        // 初始化LLM提供商
+        const currentProvider = this.llmManager.getCurrentConfig();
+        if (currentProvider && currentProvider.name && currentProvider.apiKey) {
+            try {
+                this.llmManager.setCurrentProvider(currentProvider.name, currentProvider.apiKey, currentProvider.model);
+            } catch (error) {
+                console.warn('初始化LLM提供商失败:', error);
+            }
+        }
     }
 
     // 绑定事件
     bindEvents() {
-        // API密钥保存
-        $('#saveApiKey')?.addEventListener('click', () => this.saveApiKey());
+        // API配置相关
+        $('#saveNanobananaConfig')?.addEventListener('click', () => this.saveNanobananaConfig());
+        $('#saveLlmConfig')?.addEventListener('click', () => this.saveLlmConfig());
+        $('#testLlmConnection')?.addEventListener('click', () => this.testLlmConnection());
+
+        // LLM提供商相关
+        $('#llmProvider')?.addEventListener('change', () => this.updateProviderFields());
+        $('#unlockUrl')?.addEventListener('click', () => this.toggleUrlInput());
 
         // 表单提交
         $('#topicForm')?.addEventListener('submit', (e) => this.handleTopicSubmit(e));
@@ -43,7 +197,6 @@ class ReportApp {
 
         // 结果相关按钮
         $('#downloadBtn')?.addEventListener('click', () => this.downloadImage());
-        $('#regenerateImageBtn')?.addEventListener('click', () => this.regenerateImage());
         $('#newReportBtn')?.addEventListener('click', () => this.createNewReport());
 
         // 词汇分类标签
@@ -62,41 +215,162 @@ class ReportApp {
                 $('#errorModal').classList.remove('active');
             }
         });
-
-        // API密钥回车保存
-        $('#apiKey')?.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this.saveApiKey();
-            }
-        });
     }
 
-    // 保存API密钥
-    saveApiKey() {
-        const apiKey = $('#apiKey').value.trim();
-        if (!apiKey) {
+    // 保存Nano Banana Pro配置
+    async saveNanobananaConfig() {
+        const url = $('#nanobananaUrl').value.trim();
+        const key = $('#nanobananaKey').value.trim();
+
+        if (!key) {
             showError(CONFIG.ERROR_MESSAGES.API_KEY_MISSING);
             return;
         }
 
-        nanoBananaAPI.setApiKey(apiKey);
-        showSuccess(CONFIG.SUCCESS_MESSAGES.API_KEY_SAVED);
+        if (!isValidUrl(url)) {
+            showError('请输入有效的API地址');
+            return;
+        }
 
-        // 测试API密钥是否有效
-        this.testApiKey(apiKey);
+        const config = { url, key };
+
+        if (saveConfig(CONFIG.STORAGE_KEYS.NANOBANANA, config)) {
+            this.nanobananaAPI = new NanoBananaAPI(url, key);
+            showStatus('nanobananaStatus', 'success', '✓ 已保存');
+            showSuccess(CONFIG.SUCCESS_MESSAGES.API_KEY_SAVED);
+        }
     }
 
-    // 测试API密钥
-    async testApiKey(apiKey) {
+    // 保存LLM配置
+    async saveLlmConfig() {
+        const provider = $('#llmProvider').value;
+        const url = $('#llmUrl').value.trim();
+        const key = $('#llmKey').value.trim();
+        const model = $('#llmModel').value;
+
+        if (!provider) {
+            showError('请选择LLM提供商');
+            return;
+        }
+
+        if (!key) {
+            showError(CONFIG.ERROR_MESSAGES.API_KEY_MISSING);
+            return;
+        }
+
+        if (!model) {
+            showError('请选择模型');
+            return;
+        }
+
         try {
-            const result = await nanoBananaAPI.validateApiKey();
-            if (result.valid) {
-                console.log('API密钥验证成功');
+            // 设置当前提供商（包含模型信息）
+            this.llmManager.setCurrentProvider(provider, key, model);
+
+            // 保存配置
+            const config = {
+                provider: provider,
+                baseUrl: url,
+                model: model,
+                apiKey: key
+            };
+
+            // 保存到localStorage
+            localStorage.setItem('llm_current_provider', provider);
+            this.llmManager.saveProviderConfig(provider, config);
+
+            showStatus('llmStatus', 'success', '✓ 已保存');
+            showSuccess(CONFIG.SUCCESS_MESSAGES.API_KEY_SAVED);
+
+            // 更新API客户端
+            this.initAPIClients();
+        } catch (error) {
+            showError(`保存配置失败: ${error.message}`);
+        }
+    }
+
+    // 测试LLM连接
+    async testLlmConnection() {
+        const provider = $('#llmProvider').value;
+        const key = $('#llmKey').value.trim();
+        const model = $('#llmModel').value;
+
+        if (!provider || !key) {
+            showError('请先选择提供商并输入API密钥');
+            return;
+        }
+
+        const testBtn = $('#testLlmConnection');
+        setLoading(testBtn, true);
+
+        try {
+            // 创建临时提供商实例进行测试
+            const ProviderClass = window.LLM_PROVIDER_MAP[provider];
+            if (!ProviderClass) {
+                throw new Error('未知的提供商');
+            }
+
+            const tempProvider = new ProviderClass(key, model);
+            const result = await tempProvider.testConnection();
+
+            if (result.success) {
+                showStatus('llmStatus', 'success', '✓ 连接成功');
+                showSuccess('LLM API连接测试成功');
+                console.log('API响应:', result.response);
             } else {
-                showError(result.message);
+                showStatus('llmStatus', 'error', '✗ 连接失败');
+
+                // 显示更详细的错误信息
+                let errorMessage = `连接测试失败: ${result.error}`;
+                if (result.status) {
+                    errorMessage += ` (HTTP ${result.status})`;
+                }
+
+                showError(errorMessage);
+
+                // 提供可能的解决方案
+                if (result.error.includes('CORS')) {
+                    console.warn('CORS错误提示：请使用本地服务器运行应用');
+                    alert('检测到CORS错误。请使用本地服务器运行：\n1. 进入项目目录\n2. 运行: python3 -m http.server 8000\n3. 访问: http://localhost:8000');
+                } else if (result.error.includes('401') || result.error.includes('invalid')) {
+                    console.warn('认证错误：请检查API密钥是否正确');
+                    alert('API密钥无效，请检查：\n1. API密钥是否正确\n2. 账户是否有足够余额\n3. API密钥是否已过期');
+                }
             }
         } catch (error) {
-            console.error('API密钥验证失败:', error);
+            showStatus('llmStatus', 'error', '✗ 连接失败');
+            showError(`连接测试失败: ${error.message}`);
+
+            if (error.message.includes('Failed to fetch')) {
+                console.warn('网络错误提示：可能是CORS问题或网络连接问题');
+                alert('网络连接失败。可能的原因：\n1. CORS限制（需使用本地服务器）\n2. 网络连接问题\n3. API地址不正确');
+            }
+        } finally {
+            setLoading(testBtn, false);
+        }
+    }
+
+    // 切换URL输入状态
+    toggleUrlInput() {
+        const urlInput = $('#llmUrl');
+        const unlockBtn = $('#unlockUrl');
+
+        if (urlInput.readOnly) {
+            urlInput.readOnly = false;
+            urlInput.style.backgroundColor = '#fff';
+            unlockBtn.textContent = '锁定地址';
+            unlockBtn.classList.add('btn-warning');
+        } else {
+            urlInput.readOnly = true;
+            urlInput.style.backgroundColor = '#f5f5f5';
+            unlockBtn.textContent = '自定义地址';
+            unlockBtn.classList.remove('btn-warning');
+
+            // 恢复默认地址
+            const provider = $('#llmProvider').value;
+            if (provider && CONFIG.LLM_PROVIDERS[provider]) {
+                urlInput.value = CONFIG.LLM_PROVIDERS[provider].baseUrl;
+            }
         }
     }
 
@@ -107,7 +381,6 @@ class ReportApp {
         const topic = $('#topic').value.trim();
         const title = $('#title').value.trim();
 
-        // 验证输入
         if (!topic) {
             showError(CONFIG.ERROR_MESSAGES.EMPTY_TOPIC);
             return;
@@ -118,278 +391,160 @@ class ReportApp {
             return;
         }
 
-        // 检查API密钥
-        if (!nanoBananaAPI.getApiKey()) {
-            showError(CONFIG.ERROR_MESSAGES.API_KEY_MISSING);
+        // 检查API配置
+        if (!this.llmManager.getCurrentProvider()) {
+            showError('请先配置词汇生成LLM API');
             return;
         }
 
-        // 生成词汇
-        await this.generateVocabulary(topic, title);
+        this.currentTopic = topic;
+        this.currentTitle = title;
+
+        try {
+            // 生成词汇
+            await this.generateVocabulary(topic, title);
+        } catch (error) {
+            showError(`生成词汇失败: ${error.message}`);
+        }
     }
 
     // 生成词汇
     async generateVocabulary(topic, title) {
-        // 显示加载状态
-        const loader = createLoader('step2', '正在生成词汇列表...');
+        showStep('step2');
+
+        const vocabularyList = $('#vocabularyList');
+        vocabularyList.innerHTML = `
+            <div style="text-align: center; padding: 40px;">
+                <div class="loading-spinner"></div>
+                <p style="margin-top: 16px; color: var(--text-secondary);">正在生成词汇...</p>
+            </div>
+        `;
 
         try {
-            // 调用词汇生成引擎
-            const vocabulary = await vocabularyEngine.generateVocabulary(topic, {
-                useCache: true,
-                useAI: true
-            });
-
-            if (!vocabulary || vocabulary.length < CONFIG.VOCABULARY_COUNT.TOTAL_MIN) {
-                throw new Error('生成的词汇数量不足');
-            }
-
-            // 保存词汇
-            this.currentVocabulary = vocabulary;
-
-            // 保存到历史
-            vocabularyEngine.saveToHistory(topic, title, vocabulary);
-
-            // 显示词汇列表
+            const vocabulary = await this.llmManager.generateVocabulary(topic, title);
             this.displayVocabulary(vocabulary);
-
-            // 切换到词汇确认步骤
-            this.showStep(CONFIG.UI.STEPS.VOCABULARY);
-
+            showSuccess(CONFIG.SUCCESS_MESSAGES.VOCABULARY_GENERATED);
         } catch (error) {
-            console.error('生成词汇失败:', error);
-            showError(error.message || '生成词汇失败，请重试');
-        } finally {
-            removeLoader(loader);
+            vocabularyList.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: var(--danger-color);">
+                    <p>生成失败: ${error.message}</p>
+                    <button onclick="app.generateVocabulary('${topic}', '${title}')" class="btn-secondary" style="margin-top: 16px;">重试</button>
+                </div>
+            `;
+            throw error;
         }
     }
 
-    // 显示词汇列表
+    // 显示词汇
     displayVocabulary(vocabulary) {
-        const container = $('#vocabularyList');
-        if (!container) return;
+        this.vocabularyManager.vocabulary = vocabulary;
+        this.vocabularyManager.setFilter('all');
 
-        container.innerHTML = '';
+        const vocabularyList = $('#vocabularyList');
+        vocabularyList.innerHTML = this.vocabularyManager.formatVocabularyHTML(
+            this.vocabularyManager.getFilteredVocabulary()
+        );
 
-        vocabulary.forEach((item, index) => {
-            const itemEl = document.createElement('div');
-            itemEl.className = 'vocabulary-item';
-            itemEl.dataset.category = item.category;
-            itemEl.dataset.index = index;
-
-            itemEl.innerHTML = `
-                <div class="word-content">
-                    <div class="hanzi">${item.hanzi}</div>
-                    <div class="pinyin">${item.pinyin}</div>
-                    <div class="category">${CONFIG.CATEGORY_NAMES[item.category]}</div>
-                </div>
-            `;
-
-            // 点击选择/取消选择
-            itemEl.addEventListener('click', () => {
-                itemEl.classList.toggle('selected');
-            });
-
-            container.appendChild(itemEl);
-        });
-
-        // 默认全选
-        $$('.vocabulary-item').forEach(item => {
-            item.classList.add('selected');
-        });
+        // 更新统计信息
+        this.updateVocabularyStats();
     }
 
-    // 筛选词汇
+    // 更新词汇统计
+    updateVocabularyStats() {
+        const stats = this.vocabularyManager.getStatistics();
+        console.log('词汇统计:', stats);
+    }
+
+    // 过滤词汇
     filterVocabulary(category) {
         // 更新标签状态
         $$('.tab-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.category === category);
         });
 
-        // 筛选词汇项
-        const items = $$('.vocabulary-item');
-        items.forEach(item => {
-            if (category === 'all' || item.dataset.category === category) {
-                item.style.display = 'block';
-            } else {
-                item.style.display = 'none';
-            }
-        });
+        // 更新词汇列表
+        this.vocabularyManager.setFilter(category);
+        const vocabularyList = $('#vocabularyList');
+        vocabularyList.innerHTML = this.vocabularyManager.formatVocabularyHTML(
+            this.vocabularyManager.getFilteredVocabulary()
+        );
     }
 
     // 重新生成词汇
     async regenerateVocabulary() {
-        const topic = $('#topic').value.trim();
-        const title = $('#title').value.trim();
-
-        if (!topic || !title) return;
-
-        // 清除缓存
-        vocabularyEngine.cache = {};
-
-        // 重新生成
-        await this.generateVocabulary(topic, title);
+        await this.generateVocabulary(this.currentTopic, this.currentTitle);
     }
 
-    // 确认词汇
+    // 确认使用词汇
     confirmVocabulary() {
-        // 获取选中的词汇
-        const selectedItems = $$('.vocabulary-item.selected');
-        if (selectedItems.length < CONFIG.VOCABULARY_COUNT.TOTAL_MIN) {
-            showError(`请至少选择${CONFIG.VOCABULARY_COUNT.TOTAL_MIN}个词汇`);
+        if (!this.vocabularyManager.getVocabulary()) {
+            showError('请先生成词汇列表');
             return;
         }
 
-        // 更新当前词汇列表
-        this.currentVocabulary = Array.from(selectedItems).map(item => {
-            const index = parseInt(item.dataset.index);
-            return this.currentVocabulary[index];
-        });
+        if (!this.nanobananaAPI) {
+            showError('请先配置图片生成API');
+            return;
+        }
 
-        // 生成提示词
-        this.generatePrompt();
+        this.generateReport();
     }
 
-    // 生成提示词
-    generatePrompt() {
-        const topic = $('#topic').value.trim();
-        const title = $('#title').value.trim();
-
-        // 生成完整提示词
-        const fullPrompt = this.promptTemplate.generatePrompt(topic, title, this.currentVocabulary);
-
-        // 开始生成图片
-        this.startGeneration(fullPrompt);
-    }
-
-    // 开始生成图片
-    async startGeneration(prompt) {
-        // 切换到生成步骤
-        this.showStep(CONFIG.UI.STEPS.GENERATING);
+    // 生成小报
+    async generateReport() {
+        showStep('step3');
+        $('#cancelBtn').style.display = 'inline-block';
 
         try {
-            // 创建生成任务
-            const result = await nanoBananaAPI.generateImage(prompt, {
-                aspectRatio: CONFIG.DEFAULT_ASPECT_RATIO,
-                resolution: CONFIG.DEFAULT_RESOLUTION,
-                onTaskCreated: (task) => {
-                    this.currentTask = task;
-                    $('#taskId').textContent = `任务ID: ${task.taskId}`;
-                },
-                onProgress: (status, attempts) => {
-                    this.updateProgress(status, attempts);
-                }
+            // 生成提示词
+            const vocabulary = this.vocabularyManager.getVocabulary();
+            const prompt = this.promptGenerator.generatePrompt(this.currentTopic, this.currentTitle, vocabulary);
+
+            // 调用API生成图片
+            const result = await this.nanobananaAPI.generateImage(prompt, {}, (data, progress) => {
+                // 更新进度
+                const percentage = Math.min(progress * 100, 95); // 最多显示95%，等待完成
+                updateProgress(percentage, this.getProgressText(data.state));
             });
 
-            if (result.success) {
-                // 生成成功
-                this.handleGenerationSuccess(result);
-            } else {
-                // 生成失败
-                this.handleGenerationError(result);
-            }
+            // 生成成功
+            updateProgress(100, '生成成功！');
+            setTimeout(() => {
+                this.displayResult(result.imageUrls[0]);
+            }, 500);
 
         } catch (error) {
-            console.error('生成失败:', error);
-            this.handleGenerationError({ error: error.message });
-        }
-    }
-
-    // 更新进度
-    updateProgress(status, attempts) {
-        // 更新进度条
-        const progress = Math.min((attempts / 30) * 100, 90); // 假设30次查询完成90%
-        $('#progressFill').style.width = `${progress}%`;
-
-        // 更新状态文本
-        let statusText = '正在生成中...';
-        switch (status.state) {
-            case 'waiting':
-                statusText = '等待处理中...';
-                break;
-            case 'processing':
-                statusText = 'AI正在绘画中...';
-                break;
-        }
-
-        $('#progressText').textContent = statusText;
-
-        // 添加状态指示器
-        this.addStatusIndicator(status.state);
-    }
-
-    // 添加状态指示器
-    addStatusIndicator(state) {
-        let container = $('.status-indicator');
-        if (!container) {
-            container = document.createElement('div');
-            container.className = 'status-indicator';
-            $('#progressText').after(container);
-        }
-
-        container.className = `status-indicator ${state}`;
-        container.textContent = this.getStatusText(state);
-    }
-
-    // 获取状态文本
-    getStatusText(state) {
-        const statusTexts = {
-            'waiting': '等待中',
-            'processing': '生成中',
-            'success': '已完成',
-            'failed': '失败'
-        };
-        return statusTexts[state] || '未知状态';
-    }
-
-    // 处理生成成功
-    handleGenerationSuccess(result) {
-        // 完成进度条
-        $('#progressFill').style.width = '100%';
-        $('#progressText').textContent = '生成完成！';
-
-        // 保存任务记录
-        nanoBananaAPI.saveTask(result);
-
-        // 显示结果
-        this.displayResult(result.result);
-
-        // 切换到结果步骤
-        setTimeout(() => {
-            this.showStep(CONFIG.UI.STEPS.RESULT);
-        }, 1000);
-    }
-
-    // 处理生成错误
-    handleGenerationError(error) {
-        console.error('生成错误:', error);
-
-        // 显示错误信息
-        $('#progressText').textContent = '生成失败';
-        $('#progressFill').style.backgroundColor = 'var(--danger-color)';
-
-        // 显示错误模态框
-        setTimeout(() => {
-            showError(error.error || CONFIG.ERROR_MESSAGES.GENERATION_ERROR);
-
-            // 返回上一步
+            updateProgress(0, '生成失败');
+            showError(`生成失败: ${error.message}`);
             setTimeout(() => {
-                this.showStep(CONFIG.UI.STEPS.VOCABULARY);
-            }, 1000);
-        }, 1000);
+                showStep('step2');
+            }, 2000);
+        }
+    }
+
+    // 获取进度文本
+    getProgressText(state) {
+        const stateMap = {
+            'waiting': '任务已提交，等待处理...',
+            'running': 'AI正在生成图片，请稍候...',
+            'success': '生成完成！'
+        };
+        return stateMap[state] || '处理中...';
+    }
+
+    // 取消生成
+    cancelGeneration() {
+        this.generationTaskId = null;
+        showStep('step2');
     }
 
     // 显示结果
-    displayResult(result) {
-        const container = $('#reportPreview');
-        if (!container || !result || !result.urls || !result.urls.length) {
-            container.innerHTML = '<div class="placeholder">没有生成的图片</div>';
-            return;
-        }
+    displayResult(imageUrl) {
+        showStep('step4');
 
-        const imageUrl = result.urls[0];
-        container.innerHTML = `
-            <img src="${imageUrl}" alt="生成的识字小报" />
+        const reportPreview = $('#reportPreview');
+        reportPreview.innerHTML = `
+            <img src="${imageUrl}" alt="儿童识字小报" />
         `;
 
         // 保存图片URL供下载使用
@@ -403,110 +558,50 @@ class ReportApp {
             return;
         }
 
-        const topic = $('#topic').value.trim();
-        const title = $('#title').value.trim();
-        const filename = `${title}_${formatTime(Date.now()).replace(/[^\d]/g, '')}.png`;
+        try {
+            // 生成文件名
+            const filename = formatFilename(this.currentTitle, this.currentTopic);
 
-        downloadFile(this.currentImageUrl, filename);
-    }
+            // 显示下载提示
+            const downloadBtn = $('#downloadBtn');
+            if (downloadBtn) {
+                const originalText = downloadBtn.textContent;
+                downloadBtn.textContent = '准备下载...';
+                downloadBtn.disabled = true;
 
-    // 重新生成图片
-    regenerateImage() {
-        // 确认对话框
-        if (confirm('确定要重新生成图片吗？之前的图片将会丢失。')) {
-            // 重新生成提示词
-            this.generatePrompt();
+                // 恢复按钮状态
+                setTimeout(() => {
+                    downloadBtn.textContent = originalText;
+                    downloadBtn.disabled = false;
+                }, 3000);
+            }
+
+            // 尝试下载
+            downloadImage(this.currentImageUrl, filename);
+
+        } catch (error) {
+            console.error('下载图片出错:', error);
+            showError(`下载失败: ${error.message}`);
         }
     }
 
-    // 创建新的报告
+    // 创建新的小报
     createNewReport() {
+        // 重置状态
+        this.vocabularyManager.vocabulary = null;
+        this.currentTopic = '';
+        this.currentTitle = '';
+        this.currentImageUrl = null;
+
         // 重置表单
         $('#topicForm').reset();
 
-        // 清空数据
-        this.currentVocabulary = [];
-        this.currentTask = null;
-        this.currentImageUrl = null;
-
-        // 重置进度条
-        $('#progressFill').style.width = '0%';
-        $('#progressText').textContent = '正在调用AI生成...';
-
         // 返回第一步
-        this.showStep(CONFIG.UI.STEPS.INPUT);
-    }
-
-    // 取消生成
-    cancelGeneration() {
-        if (this.currentTask) {
-            nanoBananaAPI.cancelTask(this.currentTask.taskId);
-            this.currentTask = null;
-        }
-
-        // 停止轮询
-        if (this.pollingTimer) {
-            clearInterval(this.pollingTimer);
-            this.pollingTimer = null;
-        }
-
-        // 返回上一步
-        this.showStep(CONFIG.UI.STEPS.VOCABULARY);
-    }
-
-    // 显示步骤
-    showStep(stepId) {
-        // 隐藏所有步骤
-        $$('.step').forEach(step => {
-            step.classList.remove('active');
-        });
-
-        // 显示目标步骤
-        const targetStep = $(`#${stepId}`);
-        if (targetStep) {
-            // 使用setTimeout确保动画效果
-            setTimeout(() => {
-                targetStep.classList.add('active');
-            }, 50);
-        }
-
-        this.currentStep = stepId;
-
-        // 滚动到顶部
-        window.scrollTo({
-            top: 0,
-            behavior: 'smooth'
-        });
+        showStep('step1');
     }
 }
 
 // DOM加载完成后初始化应用
 document.addEventListener('DOMContentLoaded', () => {
-    // 确保所有依赖都已加载
-    if (typeof CONFIG === 'undefined' ||
-        typeof storage === 'undefined' ||
-        typeof nanoBananaAPI === 'undefined' ||
-        typeof vocabularyEngine === 'undefined' ||
-        typeof PromptTemplate === 'undefined') {
-        console.error('缺少必要的依赖模块');
-        alert('应用加载失败，请刷新页面重试');
-        return;
-    }
-
-    // 创建应用实例
-    window.reportApp = new ReportApp();
+    window.app = new LiteracyReportApp();
 });
-
-// 防止页面刷新时丢失数据
-window.addEventListener('beforeunload', (e) => {
-    // 如果正在生成，提示用户
-    if (window.reportApp && window.reportApp.currentTask) {
-        e.preventDefault();
-        e.returnValue = '正在生成图片，确定要离开吗？';
-    }
-});
-
-// 导出应用类
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = ReportApp;
-}

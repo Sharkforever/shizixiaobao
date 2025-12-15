@@ -1,8 +1,220 @@
-// 工具函数集合
+// 工具函数
 
-// DOM操作辅助函数
+// DOM选择器快捷方式
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => document.querySelectorAll(selector);
+
+// 显示成功消息
+function showSuccess(message) {
+    // 创建提示元素
+    const toast = document.createElement('div');
+    toast.className = 'toast toast-success';
+    toast.innerHTML = `
+        <span class="toast-icon">✓</span>
+        <span class="toast-message">${message}</span>
+    `;
+
+    // 添加到页面
+    document.body.appendChild(toast);
+
+    // 显示动画
+    setTimeout(() => toast.classList.add('show'), 10);
+
+    // 3秒后移除
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => document.body.removeChild(toast), 300);
+    }, 3000);
+}
+
+// 显示错误消息
+function showError(message, title = '错误') {
+    // 更新模态框内容
+    $('#errorMessage').textContent = message;
+    $('#errorModal').classList.add('active');
+}
+
+// 加载配置
+function loadConfig(key) {
+    try {
+        const stored = localStorage.getItem(key);
+        return stored ? JSON.parse(stored) : null;
+    } catch (error) {
+        console.error('加载配置失败:', error);
+        return null;
+    }
+}
+
+// 保存配置
+function saveConfig(key, config) {
+    try {
+        localStorage.setItem(key, JSON.stringify(config));
+        return true;
+    } catch (error) {
+        console.error('保存配置失败:', error);
+        return false;
+    }
+}
+
+// 下载图片
+function downloadImage(url, filename) {
+    try {
+        // 首先尝试直接下载（适用于同源或设置了CORS的图片）
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.target = '_blank';
+
+        // 检查是否是有效的URL
+        if (!url || typeof url !== 'string') {
+            throw new Error('无效的图片URL');
+        }
+
+        // 方法1: 尝试直接下载
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // 如果直接下载失败，尝试使用fetch + blob
+        setTimeout(() => {
+            downloadImageWithFetch(url, filename);
+        }, 100);
+
+    } catch (error) {
+        console.error('下载失败:', error);
+        // 最后的备选方案：在新标签页打开图片
+        downloadImageFallback(url);
+    }
+}
+
+// 使用fetch方式下载图片
+function downloadImageWithFetch(url, filename) {
+    fetch(url, {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-cache'
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.blob();
+    })
+    .then(blob => {
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // 清理blob URL
+        setTimeout(() => {
+            URL.revokeObjectURL(blobUrl);
+        }, 1000);
+    })
+    .catch(error => {
+        console.error('Fetch下载失败:', error);
+        // 备选方案
+        downloadImageFallback(url);
+    });
+}
+
+// 下载失败的备选方案
+function downloadImageFallback(url) {
+    try {
+        // 创建一个新的窗口来显示图片，用户可以手动右键保存
+        const width = 800;
+        const height = 600;
+        const left = (screen.width - width) / 2;
+        const top = (screen.height - height) / 2;
+
+        const newWindow = window.open(
+            url,
+            '_blank',
+            `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
+        );
+
+        if (newWindow) {
+            // 显示提示信息
+            setTimeout(() => {
+                showSuccess('图片已在新窗口中打开，请右键点击图片选择"图片另存为"');
+            }, 500);
+        } else {
+            // 如果弹窗被阻止，使用最后的备选方案
+            const message = `
+                下载提示：
+                1. 请点击下方链接在新标签页打开图片
+                2. 然后右键图片选择"图片另存为"
+
+                图片链接：${url}
+            `;
+
+            // 创建一个模态框显示链接
+            showDownloadDialog(url);
+        }
+    } catch (error) {
+        console.error('备选下载方案失败:', error);
+        showError('下载失败，请手动复制图片链接进行下载：' + url);
+    }
+}
+
+// 显示下载对话框
+function showDownloadDialog(imageUrl) {
+    // 创建模态框HTML
+    const modalHtml = `
+        <div id="downloadModal" class="modal active" style="display: flex;">
+            <div class="modal-content" style="max-width: 600px;">
+                <h3>下载图片</h3>
+                <p>由于浏览器安全限制，无法直接下载图片。请按以下步骤操作：</p>
+                <ol style="text-align: left; margin: 20px 0;">
+                    <li>点击下方按钮在新标签页打开图片</li>
+                    <li>在新标签页中右键点击图片</li>
+                    <li>选择"图片另存为"或"Save image as"</li>
+                    <li>选择保存位置并点击保存</li>
+                </ol>
+                <div style="margin: 20px 0;">
+                    <button id="openImageBtn" class="btn-primary">在新标签页打开图片</button>
+                    <button id="copyLinkBtn" class="btn-secondary">复制图片链接</button>
+                </div>
+                <div style="margin: 20px 0;">
+                    <input type="text" id="imageUrl" value="${imageUrl}" readonly style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;">
+                </div>
+                <button id="closeDownloadModal" class="btn-secondary">关闭</button>
+            </div>
+        </div>
+    `;
+
+    // 添加到页面
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // 绑定事件
+    document.getElementById('openImageBtn').addEventListener('click', () => {
+        window.open(imageUrl, '_blank');
+    });
+
+    document.getElementById('copyLinkBtn').addEventListener('click', () => {
+        const urlInput = document.getElementById('imageUrl');
+        urlInput.select();
+        document.execCommand('copy');
+        showSuccess('图片链接已复制到剪贴板');
+    });
+
+    document.getElementById('closeDownloadModal').addEventListener('click', () => {
+        const modal = document.getElementById('downloadModal');
+        if (modal) {
+            modal.remove();
+        }
+    });
+
+    // 点击背景关闭
+    document.getElementById('downloadModal').addEventListener('click', (e) => {
+        if (e.target.id === 'downloadModal') {
+            e.target.remove();
+        }
+    });
+}
 
 // 防抖函数
 function debounce(func, wait) {
@@ -17,380 +229,141 @@ function debounce(func, wait) {
     };
 }
 
-// 节流函数
-function throttle(func, limit) {
-    let inThrottle;
-    return function(...args) {
-        if (!inThrottle) {
-            func.apply(this, args);
-            inThrottle = true;
-            setTimeout(() => inThrottle = false, limit);
-        }
-    };
+// 格式化文件名
+function formatFilename(title, topic) {
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+    const cleanTitle = title.replace(/[^\w\u4e00-\u9fa5]/g, '_');
+    const cleanTopic = topic.replace(/[^\w\u4e00-\u9fa5]/g, '_');
+    return `识字小报_${cleanTopic}_${cleanTitle}_${timestamp}.png`;
 }
 
-// 格式化时间
-function formatTime(timestamp) {
-    const date = new Date(timestamp);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-}
+// 更新进度条
+function updateProgress(percentage, text) {
+    const progressFill = $('#progressFill');
+    const progressText = $('#progressText');
 
-// 本地存储操作
-const storage = {
-    set(key, value) {
-        try {
-            localStorage.setItem(key, JSON.stringify(value));
-        } catch (error) {
-            console.error('Storage set error:', error);
-        }
-    },
-
-    get(key, defaultValue = null) {
-        try {
-            const item = localStorage.getItem(key);
-            return item ? JSON.parse(item) : defaultValue;
-        } catch (error) {
-            console.error('Storage get error:', error);
-            return defaultValue;
-        }
-    },
-
-    remove(key) {
-        try {
-            localStorage.removeItem(key);
-        } catch (error) {
-            console.error('Storage remove error:', error);
-        }
-    },
-
-    clear() {
-        try {
-            localStorage.clear();
-        } catch (error) {
-            console.error('Storage clear error:', error);
-        }
+    if (progressFill) {
+        progressFill.style.width = `${percentage}%`;
     }
-};
 
-// 错误处理
-class AppError extends Error {
-    constructor(message, type = 'general') {
-        super(message);
-        this.name = 'AppError';
-        this.type = type;
+    if (progressText) {
+        progressText.textContent = text;
     }
 }
 
-// 显示错误消息
-function showError(message, duration = 5000) {
-    const errorModal = $('#errorModal');
-    const errorMessage = $('#errorMessage');
+// 显示加载状态
+function setLoading(buttonElement, loading = true) {
+    if (!buttonElement) return;
 
-    if (errorMessage) {
-        errorMessage.textContent = message;
-    }
-
-    if (errorModal) {
-        errorModal.classList.add('active');
-
-        // 自动关闭
-        setTimeout(() => {
-            errorModal.classList.remove('active');
-        }, duration);
+    if (loading) {
+        buttonElement.disabled = true;
+        buttonElement.dataset.originalText = buttonElement.textContent;
+        buttonElement.innerHTML = `
+            <span class="loading-spinner"></span>
+            处理中...
+        `;
     } else {
-        // 如果模态框不存在，使用alert
-        alert(message);
+        buttonElement.disabled = false;
+        buttonElement.textContent = buttonElement.dataset.originalText || '确定';
+        delete buttonElement.dataset.originalText;
     }
 }
 
-// 显示成功消息
-function showSuccess(message) {
-    // 创建成功提示元素
-    const successTip = document.createElement('div');
-    successTip.className = 'success-tip';
-    successTip.innerHTML = `
-        <div class="success-content">
-            <span class="success-icon">✓</span>
-            <span class="success-message">${message}</span>
-        </div>
-    `;
+// 显示状态指示器
+function showStatus(elementId, status, message) {
+    const element = $(`#${elementId}`);
+    if (!element) return;
 
-    // 添加样式
-    successTip.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: var(--success-color);
-        color: white;
-        padding: 12px 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        z-index: 1000;
-        animation: slideIn 0.3s ease;
-    `;
-
-    document.body.appendChild(successTip);
-
-    // 3秒后自动移除
-    setTimeout(() => {
-        successTip.style.animation = 'slideOut 0.3s ease';
-        setTimeout(() => {
-            document.body.removeChild(successTip);
-        }, 300);
-    }, 3000);
+    element.className = `status-indicator ${status}`;
+    element.textContent = message;
 }
 
-// 添加CSS动画
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
+// 切换步骤显示
+function showStep(stepId) {
+    // 隐藏所有步骤
+    $$('.step').forEach(step => {
+        step.classList.remove('active');
+    });
 
-    @keyframes slideOut {
-        from {
-            transform: translateX(0);
-            opacity: 1;
-        }
-        to {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-    }
-
-    .success-content {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .success-icon {
-        font-weight: bold;
-        font-size: 18px;
-    }
-`;
-document.head.appendChild(style);
-
-// 步骤切换
-function switchStep(fromStep, toStep) {
-    const fromElement = $(`#${fromStep}`);
-    const toElement = $(`#${toStep}`);
-
-    if (fromElement) {
-        fromElement.classList.remove('active');
-    }
-
-    if (toElement) {
-        setTimeout(() => {
-            toElement.classList.add('active');
-            // 滚动到顶部
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
-        }, CONFIG.UI.ANIMATION_DURATION);
+    // 显示目标步骤
+    const targetStep = $(`#${stepId}`);
+    if (targetStep) {
+        targetStep.classList.add('active');
+        // 滚动到顶部
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
     }
 }
 
-// 生成随机ID
-function generateId(prefix = '', length = 8) {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let result = prefix;
-    for (let i = 0; i < length; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-}
-
-// 下载文件
-function downloadFile(url, filename) {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename || `识字小报_${formatTime(Date.now()).replace(/[^\d]/g, '')}.png`;
-    link.target = '_blank';
-
-    // 处理跨域图片
-    if (url.startsWith('http')) {
-        fetch(url)
-            .then(response => response.blob())
-            .then(blob => {
-                const blobUrl = URL.createObjectURL(blob);
-                link.href = blobUrl;
-                link.click();
-                setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
-            })
-            .catch(error => {
-                console.error('Download error:', error);
-                showError(CONFIG.ERROR_MESSAGES.DOWNLOAD_ERROR);
-            });
-    } else {
-        link.click();
-    }
-}
-
-// 验证输入
-function validateInput(value, rules = {}) {
-    const {
-        required = false,
-        minLength = 0,
-        maxLength = Infinity,
-        pattern = null
-    } = rules;
-
-    if (required && !value) {
-        return { valid: false, message: '此字段为必填项' };
-    }
-
-    if (value && value.length < minLength) {
-        return { valid: false, message: `最少需要${minLength}个字符` };
-    }
-
-    if (value && value.length > maxLength) {
-        return { valid: false, message: `最多允许${maxLength}个字符` };
-    }
-
-    if (pattern && value && !pattern.test(value)) {
-        return { valid: false, message: '格式不正确' };
-    }
-
-    return { valid: true };
-}
-
-// 获取图片尺寸比例
-function getAspectRatio(aspectRatio) {
-    const ratios = {
-        '1:1': { width: 1, height: 1 },
-        '2:3': { width: 2, height: 3 },
-        '3:2': { width: 3, height: 2 },
-        '3:4': { width: 3, height: 4 },
-        '4:3': { width: 4, height: 3 },
-        '4:5': { width: 4, height: 5 },
-        '5:4': { width: 5, height: 4 },
-        '9:16': { width: 9, height: 16 },
-        '16:9': { width: 16, height: 9 },
-        '21:9': { width: 21, height: 9 }
-    };
-    return ratios[aspectRatio] || ratios['3:4'];
-}
-
-// 格式化文件大小
-function formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-// 复制到剪贴板
-async function copyToClipboard(text) {
+// 验证URL格式
+function isValidUrl(string) {
     try {
-        if (navigator.clipboard) {
-            await navigator.clipboard.writeText(text);
-            showSuccess('已复制到剪贴板');
-        } else {
-            // 兼容旧浏览器
-            const textArea = document.createElement('textarea');
-            textArea.value = text;
-            document.body.appendChild(textArea);
-            textArea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textArea);
-            showSuccess('已复制到剪贴板');
-        }
-    } catch (error) {
-        console.error('Copy error:', error);
-        showError('复制失败');
+        new URL(string);
+        return true;
+    } catch (_) {
+        return false;
     }
 }
 
-// 创建加载动画
-function createLoader(containerId, message = '加载中...') {
-    const container = $(`#${containerId}`);
-    if (!container) return null;
+// 截断文本
+function truncateText(text, maxLength) {
+    if (text.length <= maxLength) return text;
+    return text.slice(0, maxLength - 3) + '...';
+}
 
-    const loader = document.createElement('div');
-    loader.className = 'custom-loader';
-    loader.innerHTML = `
-        <div class="loader-spinner"></div>
-        <p class="loader-message">${message}</p>
-    `;
-
-    // 添加样式
-    loader.style.cssText = `
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 40px;
-        color: var(--text-secondary);
-    `;
-
+// 添加Toast样式（如果不存在）
+if (!$('#toast-styles')) {
     const style = document.createElement('style');
+    style.id = 'toast-styles';
     style.textContent = `
-        .loader-spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid var(--border-color);
-            border-top-color: var(--primary-color);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 16px;
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background-color: var(--bg-card);
+            color: var(--text-primary);
+            padding: var(--spacing-md) var(--spacing-lg);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            z-index: 1000;
+            transition: all var(--transition-base);
+            opacity: 0;
         }
-        .loader-message {
-            margin: 0;
-            font-size: 16px;
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .toast-success {
+            border-left: 4px solid var(--success-color);
+        }
+
+        .toast-error {
+            border-left: 4px solid var(--danger-color);
+        }
+
+        .toast-icon {
+            font-size: var(--font-size-lg);
+            font-weight: bold;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid transparent;
+            border-top-color: currentColor;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-right: var(--spacing-sm);
         }
     `;
-    if (!$('style[data-loader]')) {
-        style.setAttribute('data-loader', 'true');
-        document.head.appendChild(style);
-    }
-
-    container.appendChild(loader);
-    return loader;
-}
-
-// 移除加载动画
-function removeLoader(loader) {
-    if (loader && loader.parentNode) {
-        loader.parentNode.removeChild(loader);
-    }
-}
-
-// 导出工具函数
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = {
-        $,
-        $$,
-        debounce,
-        throttle,
-        formatTime,
-        storage,
-        AppError,
-        showError,
-        showSuccess,
-        switchStep,
-        generateId,
-        downloadFile,
-        validateInput,
-        getAspectRatio,
-        formatFileSize,
-        copyToClipboard,
-        createLoader,
-        removeLoader
-    };
+    document.head.appendChild(style);
 }
