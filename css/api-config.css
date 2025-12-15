@@ -1,0 +1,238 @@
+/* API配置区域样式 */
+
+.api-config-section {
+    max-width: 900px;
+    margin: 0 auto var(--spacing-xl) auto;
+    background-color: var(--bg-card);
+    padding: var(--spacing-xl);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+/* 配置区块 */
+.config-block {
+    margin-bottom: var(--spacing-xl);
+    padding-bottom: var(--spacing-xl);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.config-block:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.config-block h3 {
+    font-size: var(--font-size-xl);
+    color: var(--primary-color);
+    margin-bottom: var(--spacing-lg);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.config-block h3::before {
+    content: '';
+    width: 4px;
+    height: 24px;
+    background-color: var(--primary-color);
+    border-radius: 2px;
+}
+
+/* API配置表单 */
+.api-config {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.api-config label {
+    font-weight: 500;
+    color: var(--text-primary);
+    display: block;
+    margin-bottom: var(--spacing-xs);
+}
+
+.api-config input[type="url"],
+.api-config input[type="password"] {
+    width: 100%;
+    padding: var(--spacing-md);
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-base);
+    transition: all var(--transition-fast);
+}
+
+.api-config input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
+}
+
+.api-config button {
+    align-self: flex-start;
+    margin-top: var(--spacing-sm);
+}
+
+/* 状态指示器 */
+.status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    margin-left: var(--spacing-md);
+}
+
+.status-indicator.success {
+    background-color: rgba(76, 175, 80, 0.1);
+    color: var(--success-color);
+}
+
+.status-indicator.error {
+    background-color: rgba(244, 67, 54, 0.1);
+    color: var(--danger-color);
+}
+
+.status-indicator.warning {
+    background-color: rgba(255, 152, 0, 0.1);
+    color: var(--warning-color);
+}
+
+.status-indicator.loading {
+    color: var(--text-secondary);
+}
+
+.status-indicator.loading::before {
+    content: '';
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--border-color);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: var(--spacing-xs);
+}
+
+/* LLM提供商特定样式 */
+.form-group {
+    margin-bottom: var(--spacing-md);
+}
+
+.form-group small {
+    display: block;
+    margin-top: var(--spacing-xs);
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+.provider-select,
+.model-select {
+    width: 100%;
+    padding: var(--spacing-md);
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-base);
+    background-color: white;
+    transition: all var(--transition-fast);
+}
+
+.provider-select:focus,
+.model-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
+}
+
+.provider-select:disabled,
+.model-select:disabled {
+    background-color: var(--bg-disabled);
+    color: var(--text-disabled);
+    cursor: not-allowed;
+}
+
+.btn-small {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--font-size-sm);
+    background-color: var(--bg-secondary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.btn-small:hover {
+    background-color: var(--bg-hover);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.btn-warning {
+    background-color: var(--warning-color);
+    color: white;
+    border-color: var(--warning-color);
+}
+
+.btn-warning:hover {
+    background-color: #e6a800;
+    border-color: #e6a800;
+}
+
+.button-group {
+    display: flex;
+    gap: var(--spacing-md);
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.api-config input[readonly] {
+    background-color: var(--bg-disabled);
+    color: var(--text-disabled);
+    cursor: not-allowed;
+}
+
+.api-config input[readonly]:focus {
+    border-color: var(--border-color);
+    box-shadow: none;
+}
+
+/* 提供商描述样式 */
+#providerDescription {
+    color: var(--text-secondary);
+    font-style: italic;
+    margin-top: var(--spacing-xs);
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .api-config-section {
+        padding: var(--spacing-lg);
+    }
+
+    .config-block {
+        margin-bottom: var(--spacing-lg);
+        padding-bottom: var(--spacing-lg);
+    }
+
+    .api-config button {
+        width: 100%;
+    }
+
+    .button-group {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .button-group button {
+        width: 100%;
+        margin: 0;
+    }
+
+    .btn-small {
+        width: auto;
+        margin-top: var(--spacing-sm);
+    }
+}
